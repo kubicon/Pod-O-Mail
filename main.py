@@ -6,20 +6,27 @@
 import email
 import imaplib
 import email.header
+import email.utils
 import json
+import ssl
 import discord
-
+import os
 
 class MailContent:
     def __init__(self):
         self.subject = ""
         self.sender = ""
+        self.sender_address = ""
+        self.receiver_address = ""
         self.message = []
+
 
 def login_to_imap_with_config(file_path):
     with open(file_path, 'r') as conf_file:
         config = json.load(conf_file)
-        imap_server = imaplib.IMAP4_SSL(host=config["imap_server"])
+        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        imap_server = imaplib.IMAP4(host=config["imap_server"], port=int(config["imap_port"]))
+        imap_server.starttls(context)
         imap_server.login(config["emailAddress"], config["password"])
     return imap_server
 
@@ -61,10 +68,20 @@ def initialize_bot(file_path):
                     new_mails_to_print.append(mail)
 
             for new_mail in new_mails_to_print:
-                await channel.send("Email from: " + new_mail.sender)
-                await channel.send("Subject: " + new_mail.subject)
+                to_sent = "Email from: " + new_mail.sender + "\n"
+                to_sent += "Subject: " + new_mail.subject + "\n"
+
                 for mess in new_mail.message:
-                    await channel.send(mess)
+                    to_sent += mess + "\n"
+                send_char_length = len(to_sent)
+                if len(to_sent) > 550:
+                    for i in range(550, 1000):
+                        if to_sent[i] == " " or to_sent[i] == "\n" or to_sent[i] == "\r":
+                            send_char_length = i
+                            break
+                if send_char_length < len(to_sent):
+                    to_sent = to_sent[:send_char_length] + "\n\nThis mail was sent to conference: {}, you may read it in its entirety in your mail inbox."
+                await channel.send(to_sent)
 
     client.run(config["bot_token"])
 
@@ -93,17 +110,26 @@ def find_unseen_in_inbox(imap_server):
 def handle_subject_and_sender(content):
     subject, subject_encoding = email.header.decode_header(content["Subject"])[0]
     if isinstance(subject, bytes):
-        subject = subject.decode(subject_encoding)
-    sender, sender_encoding = email.header.decode_header(content["From"])[0]
+        if subject_encoding is None:
+            subject = subject.decode("utf-8")
+        else:
+            subject = subject.decode(subject_encoding)
+    sender_info = email.header.decode_header(content["From"])
+    sender, sender_encoding = sender_info[0]
     if isinstance(sender, bytes):
-        sender = sender.decode(sender_encoding)
-    return subject, sender
+        if sender_encoding is None:
+            sender = sender.decode("utf-8")
+        else:
+            sender = sender.decode(sender_encoding)
+
+    # receiver_address = email.header.decode_header(content["From"])[1][0].decode("utf-8").replace(" ", "").replace("<", "").replace(">", "")
+    return subject, sender, "nic", "nic"
 
 
 def handle_mail(id, imap_server):
     status, mail = imap_server.fetch(id, '(RFC822)')
     if status != 'OK':
-        print("ERROR: Could fetch mail with id: ", id, ". Response is: ", status)
+        print("ERROR: Could not fetch mail with id: ", id, ". Response is: ", status)
         return
     mail_response = MailContent()
     for response_part in mail:
@@ -112,9 +138,11 @@ def handle_mail(id, imap_server):
         if isinstance(response_part, tuple):
             mail_content = email.message_from_bytes(response_part[1])
             # Get Subject and sender of mail
-            sender, subject = handle_subject_and_sender(mail_content)
+            subject, sender, sender_address, receiver_address = handle_subject_and_sender(mail_content)
             mail_response.sender = sender
             mail_response.subject = subject
+            mail_response.sender_address = sender_address
+            mail_response.receiver_address = receiver_address
             # Multipart is either resended mail or response to mail, or it may just contain attachment or some formatting.
             if mail_content.is_multipart():
                 for part in mail_content.walk():
@@ -141,7 +169,7 @@ def handle_mail(id, imap_server):
 def set_mail_as_seen(imap_server, id):
     status, data = imap_server.store(id, '+FLAGS','\\Seen')
     if status != "OK":
-        print("ERROR: Could set mail with id: ", id, " as seen. Response is: ", status)
+        print("ERROR: Could not set mail with id: ", id, " as seen. Response is: ", status)
 
 
 
@@ -150,6 +178,14 @@ def set_mail_as_seen(imap_server, id):
 if __name__ == '__main__':
 
     config_file = "config.json"
+    # imap = login_to_imap_with_config(config_file)
+    # unseen_messages = find_unseen_in_inbox(imap)
+    # new_mails_to_print = []
+    # for message_id in unseen_messages[0].split():
+    #     mail = handle_mail(message_id, imap)
+    #     set_mail_as_seen(imap, message_id)
+    #     if (len(mail.message) != 0):
+    #         new_mails_to_print.append(mail)
     discord_bot = initialize_bot(config_file)
 
 
