@@ -66,8 +66,8 @@ def initialize_bot(file_path):
                 mail, channel_id = get_white_list(file_path)
                 if (new_mail.receiver_address.strip() == mail):
                     channel = client.get_channel(int(channel_id))
-                    to_sent = "Email from: " + new_mail.sender + "\n"
-                    to_sent += "Subject: " + new_mail.subject + "\n"
+                    to_sent = "Email from: __**" + new_mail.sender + "**__\n"
+                    to_sent += "Subject: __**" + new_mail.subject + "**__\n\n"
 
                     for mess in new_mail.message:
                         to_sent += mess + "\n"
@@ -79,8 +79,10 @@ def initialize_bot(file_path):
                                 send_char_length = i
                                 break
                     if send_char_length < len(to_sent):
-                        to_sent = to_sent[:send_char_length] + "\n\nThis mail was sent to conference: {}, you may read it in its entirety in your mail inbox."
-
+                        to_sent = to_sent[:send_char_length] + \
+                                "\n\nThis mail was sent to conference: **" + \
+                                new_mail.receiver_address + \
+                                "**s, you may read it in its entirety in your mail inbox."
                     # print(to_sent)
                     await channel.send(to_sent)
 
