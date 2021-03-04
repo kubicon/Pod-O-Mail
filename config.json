@@ -1,8 +1,9 @@
 {
-  "emailAddress": "neco@neco.com",
-  "password": "heslo",
-  "imap_server": "test_server",
-  "imap_port": "123456",
-  "bot_token": "0",
-  "channel_id": "0"
+  "emailAddress": "testing@testing.cz",
+  "password": "password",
+  "imap_server": "127.0.0.1",
+  "imap_port": "0",
+  "bot_token": "",
+  "max_length": "750",
+  "white_list": "(test@test.com, 0)"
 }

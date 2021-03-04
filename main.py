@@ -21,44 +21,39 @@ class MailContent:
         self.message = []
 
 
-def login_to_imap_with_config(file_path):
+def get_var(name):
+    return os.getenv(name)
+
+def get_var(file_path, name):
     with open(file_path, 'r') as conf_file:
         config = json.load(conf_file)
-        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-        imap_server = imaplib.IMAP4(host=config["imap_server"], port=int(config["imap_port"]))
-        imap_server.starttls(context)
-        imap_server.login(config["emailAddress"], config["password"])
+        return config[name]
+
+
+def login_to_imap_with_config(file_path):
+    context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+    imap_server = imaplib.IMAP4(host=get_var(file_path, "imap_server"), port=int(get_var(file_path,"imap_port")))
+    imap_server.starttls(context)
+    imap_server.login(get_var(file_path,"emailAddress"), get_var(file_path,"password"))
     return imap_server
 
-def get_channel_id(file_path):
-    channel_id = 0
-    with open(file_path, 'r') as conf_file:
-        config = json.load(conf_file)
-        channel_id = int(config["channel_id"])
-    return channel_id
+def get_white_list(file_path):
+    white_list = get_var(file_path, "white_list")
+    splitted = white_list.replace("(", "").replace(")", "").split(", ")
+    return splitted[0], splitted[1]
+
 
 def initialize_bot(file_path):
-    bot_token = ""
-    with open(file_path, 'r') as conf_file:
-        config = json.load(conf_file)
-        bot_token = config["bot_token"]
-    if (bot_token == ""):
-        print("ERROR: Config file doesn't seem to contain info about token")
-        return
     client = discord.Client()
 
     # Kinda ugly solution but it works
-    # Bot is constantly
+    # Bot is constantly waiting for new mails, periodic check would be better.
     @client.event
     async def on_ready():
         while (True):
             imap = login_to_imap_with_config(config_file)
 
-            channel_id = get_channel_id(config_file)
-            if (channel_id == 0):
-                continue
 
-            channel = client.get_channel(channel_id)
             unseen_messages = find_unseen_in_inbox(imap)
             new_mails_to_print = []
             for message_id in unseen_messages[0].split():
@@ -68,22 +63,28 @@ def initialize_bot(file_path):
                     new_mails_to_print.append(mail)
 
             for new_mail in new_mails_to_print:
-                to_sent = "Email from: " + new_mail.sender + "\n"
-                to_sent += "Subject: " + new_mail.subject + "\n"
+                mail, channel_id = get_white_list(file_path)
+                if (new_mail.receiver_address.strip() == mail):
+                    channel = client.get_channel(int(channel_id))
+                    to_sent = "Email from: " + new_mail.sender + "\n"
+                    to_sent += "Subject: " + new_mail.subject + "\n"
 
-                for mess in new_mail.message:
-                    to_sent += mess + "\n"
-                send_char_length = len(to_sent)
-                if len(to_sent) > 550:
-                    for i in range(550, 1000):
-                        if to_sent[i] == " " or to_sent[i] == "\n" or to_sent[i] == "\r":
-                            send_char_length = i
-                            break
-                if send_char_length < len(to_sent):
-                    to_sent = to_sent[:send_char_length] + "\n\nThis mail was sent to conference: {}, you may read it in its entirety in your mail inbox."
-                await channel.send(to_sent)
+                    for mess in new_mail.message:
+                        to_sent += mess + "\n"
+                    send_char_length = len(to_sent)
+                    max_len = int(get_var(file_path, "max_length"))
+                    if len(to_sent) > max_len:
+                        for i in range(max_len, max_len+100):
+                            if to_sent[i] == " " or to_sent[i] == "\n" or to_sent[i] == "\r":
+                                send_char_length = i
+                                break
+                    if send_char_length < len(to_sent):
+                        to_sent = to_sent[:send_char_length] + "\n\nThis mail was sent to conference: {}, you may read it in its entirety in your mail inbox."
 
-    client.run(config["bot_token"])
+                    # print(to_sent)
+                    await channel.send(to_sent)
+
+    client.run(get_var(file_path, "bot_token"))
 
 def get_list_mailboxes(imap_server):
     response_code, folders = imap_server.list()
@@ -107,6 +108,49 @@ def find_unseen_in_inbox(imap_server):
         print("ERROR: Could not search unseen messages")
     return unread_indexes
 
+# Kinda itchy, but it works, so who am I to judge?
+def parse_info(info):
+    different_names = []
+    res_name = ""
+    res_address = ""
+    for (name, encoding) in info:
+        if isinstance(name, bytes):
+            if encoding is None:
+                name = name.decode("utf8")
+            else:
+                name = name.decode(encoding)
+        different_names.append(name)
+
+    if len(different_names) == 1:
+        if "@" in different_names[0]:
+            new_names = different_names[0].split("<")
+            if len(new_names) == 1:
+                res_name = new_names[0]
+                res_address = new_names[0]
+            else:
+                res_name = new_names[0].strip()
+                res_address = new_names[1].strip().replace(">", "").replace(" ", "")
+        else:
+            res_name = different_names[0]
+    else:
+        res_name = different_names[0]
+        for diff_name in different_names[1:]:
+            if "@" in diff_name:
+                new_names = diff_name.split("<")
+                if len(new_names) == 1:
+                    to_use = new_names[0]
+                else:
+                    to_use = new_names[1]
+                new_names = to_use.split(">")
+                res_address = new_names[0]
+                break
+
+    if len(res_name) == 0:
+        res_name = res_address
+    return res_name, res_address
+
+
+
 def handle_subject_and_sender(content):
     subject, subject_encoding = email.header.decode_header(content["Subject"])[0]
     if isinstance(subject, bytes):
@@ -114,16 +158,11 @@ def handle_subject_and_sender(content):
             subject = subject.decode("utf-8")
         else:
             subject = subject.decode(subject_encoding)
-    sender_info = email.header.decode_header(content["From"])
-    sender, sender_encoding = sender_info[0]
-    if isinstance(sender, bytes):
-        if sender_encoding is None:
-            sender = sender.decode("utf-8")
-        else:
-            sender = sender.decode(sender_encoding)
+    sender_name, sender_mail = parse_info(email.header.decode_header(content["From"]))
+    receiver_name, receiver_mail = parse_info(email.header.decode_header(content["To"]))
 
     # receiver_address = email.header.decode_header(content["From"])[1][0].decode("utf-8").replace(" ", "").replace("<", "").replace(">", "")
-    return subject, sender, "nic", "nic"
+    return subject, sender_name, sender_mail, receiver_mail
 
 
 def handle_mail(id, imap_server):
