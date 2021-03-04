@@ -1,7 +1,7 @@
 {
-  "emailAddress": "poddiscordtest@seznam.cz",
+  "emailAddress": "test@neco.cz",
   "password": "password",
-  "imap_server": "imap.seznam.cz",
-  "bot_token": "ODE3MDY4ODc5NzQ1Nzc3Njc0.YEEIsQ.du05rIVmYjTCgPoLWXCTzozW9mg",
-  "channel_id": "770764289412825150"
+  "imap_server": "imap.neco.cz",
+  "bot_token": "",
+  "channel_id": "0"
 }
