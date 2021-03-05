@@ -91,7 +91,7 @@ def initialize_bot(file_path):
                             to_sent = to_sent[:send_char_length] + \
                                     "\n\nThis mail was sent to conference: **" + \
                                     new_mail.receiver_address + \
-                                    "**s, you may read it in its entirety in your mail inbox."
+                                    "**, you may read it in its entirety in your mail inbox."
                         print(to_sent)
                         await channel.send(to_sent)
 
