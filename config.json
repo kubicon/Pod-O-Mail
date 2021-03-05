@@ -5,5 +5,5 @@
   "imap_port": "0",
   "bot_token": "",
   "max_length": "750",
-  "white_list": "(test@test.com, 0)"
+  "white_list": "[(test@test.com,0);(test2@testing.com,1234)]"
 }

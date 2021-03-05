@@ -25,6 +25,8 @@ def get_var(name):
     return os.getenv(name)
 
 def get_var(file_path, name):
+    if file_path == "":
+        return get_var(name)
     with open(file_path, 'r') as conf_file:
         config = json.load(conf_file)
         return config[name]
@@ -39,8 +41,12 @@ def login_to_imap_with_config(file_path):
 
 def get_white_list(file_path):
     white_list = get_var(file_path, "white_list")
-    splitted = white_list.replace("(", "").replace(")", "").split(", ")
-    return splitted[0], splitted[1]
+    split_list = white_list.replace("[", "").replace("]", "").strip().split(";")
+    parsed_white = []
+    for splitted in split_list:
+        parsed_split = splitted.replace("(", "").replace(")", "").strip().split(",")
+        parsed_white.append((parsed_split[0].strip(), parsed_split[1].strip()))
+    return parsed_white
 
 
 def initialize_bot(file_path):
@@ -63,28 +69,29 @@ def initialize_bot(file_path):
                     new_mails_to_print.append(mail)
 
             for new_mail in new_mails_to_print:
-                mail, channel_id = get_white_list(file_path)
-                if (new_mail.receiver_address.strip() == mail):
-                    channel = client.get_channel(int(channel_id))
-                    to_sent = "Email from: __**" + new_mail.sender + "**__\n"
-                    to_sent += "Subject: __**" + new_mail.subject + "**__\n\n"
+                white_list = get_white_list(file_path)
+                for white_list_el in white_list:
+                    if (new_mail.receiver_address.strip() == white_list_el[0].strip()):
+                        channel = client.get_channel(int(white_list_el[1]))
+                        to_sent = "Email from: __**" + new_mail.sender + "**__\n"
+                        to_sent += "Subject: __**" + new_mail.subject + "**__\n\n"
 
-                    for mess in new_mail.message:
-                        to_sent += mess + "\n"
-                    send_char_length = len(to_sent)
-                    max_len = int(get_var(file_path, "max_length"))
-                    if len(to_sent) > max_len:
-                        for i in range(max_len, max_len+100):
-                            if to_sent[i] == " " or to_sent[i] == "\n" or to_sent[i] == "\r":
-                                send_char_length = i
-                                break
-                    if send_char_length < len(to_sent):
-                        to_sent = to_sent[:send_char_length] + \
-                                "\n\nThis mail was sent to conference: **" + \
-                                new_mail.receiver_address + \
-                                "**s, you may read it in its entirety in your mail inbox."
-                    # print(to_sent)
-                    await channel.send(to_sent)
+                        for mess in new_mail.message:
+                            to_sent += mess + "\n"
+                        send_char_length = len(to_sent)
+                        max_len = int(get_var(file_path, "max_length"))
+                        if len(to_sent) > max_len:
+                            for i in range(max_len, max_len+100):
+                                if to_sent[i] == " " or to_sent[i] == "\n" or to_sent[i] == "\r":
+                                    send_char_length = i
+                                    break
+                        if send_char_length < len(to_sent):
+                            to_sent = to_sent[:send_char_length] + \
+                                    "\n\nThis mail was sent to conference: **" + \
+                                    new_mail.receiver_address + \
+                                    "**s, you may read it in its entirety in your mail inbox."
+                        print(to_sent)
+                        await channel.send(to_sent)
 
     client.run(get_var(file_path, "bot_token"))
 
