@@ -11,6 +11,7 @@ import json
 import ssl
 import discord
 import os
+import sys
 
 class MailContent:
     def __init__(self):
@@ -30,13 +31,14 @@ def get_var(file_path, name):
         return config[name]
 
 def get_var_env(name):
-    return os.getenv(name)
+    env_var = os.getenv(name)
+    return env_var
 
 def login_to_imap_with_config(file_path):
     context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
     imap_server = imaplib.IMAP4(host=get_var(file_path, "imap_server"), port=int(get_var(file_path,"imap_port")))
     imap_server.starttls(context)
-    imap_server.login(get_var(file_path,"emailAddress"), get_var(file_path,"password"))
+    imap_server.login(get_var(file_path,"email_address"), get_var(file_path,"password"))
     return imap_server
 
 def get_white_list(file_path):
