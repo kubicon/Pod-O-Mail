@@ -21,16 +21,16 @@ class MailContent:
         self.message = []
 
 
-def get_var(name):
-    return os.getenv(name)
 
 def get_var(file_path, name):
     if file_path == "":
-        return get_var(name)
+        return get_var_env(name)
     with open(file_path, 'r') as conf_file:
         config = json.load(conf_file)
         return config[name]
 
+def get_var_env(name):
+    return os.getenv(name)
 
 def login_to_imap_with_config(file_path):
     context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
@@ -225,7 +225,9 @@ def set_mail_as_seen(imap_server, id):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    config_file = "config.json"
+    config_file = ""
+    # config_file = "config.json"
+
     # imap = login_to_imap_with_config(config_file)
     # unseen_messages = find_unseen_in_inbox(imap)
     # new_mails_to_print = []
@@ -234,6 +236,7 @@ if __name__ == '__main__':
     #     set_mail_as_seen(imap, message_id)
     #     if (len(mail.message) != 0):
     #         new_mails_to_print.append(mail)
+
     discord_bot = initialize_bot(config_file)
 
 
