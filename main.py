@@ -41,6 +41,11 @@ def login_to_imap_with_config(file_path):
     imap_server.login(get_var(file_path,"email_address"), get_var(file_path,"password"))
     return imap_server
 
+def login_to_imap_with_config2(file_path):
+    imap_server = imaplib.IMAP4_SSL(host=get_var(file_path, "imap_server"))
+    imap_server.login(get_var(file_path,"email_address"), get_var(file_path,"password"))
+    return imap_server
+
 def get_white_list(file_path):
     white_list = get_var(file_path, "white_list")
     split_list = white_list.replace("[", "").replace("]", "").strip().split(";")
@@ -87,13 +92,16 @@ def initialize_bot(file_path):
                                 if to_sent[i] == " " or to_sent[i] == "\n" or to_sent[i] == "\r":
                                     send_char_length = i
                                     break
+                        for i in range(5):
+                            to_sent = to_sent.replace("\r\n\r\n\r\n", "\r\n\r\n")
                         if send_char_length < len(to_sent):
                             to_sent = to_sent[:send_char_length] + \
                                     "\n\nThis mail was sent to conference: **" + \
                                     new_mail.receiver_address + \
                                     "**, you may read it in its entirety in your mail inbox."
-                        print(to_sent)
-                        await channel.send(to_sent)
+                        # print(to_sent)
+                        delimter = "----------------------------------------------------------------"
+                        await channel.send(delimter + "\n" + to_sent + "\n" + delimter)
 
     client.run(get_var(file_path, "bot_token"))
 
@@ -163,12 +171,16 @@ def parse_info(info):
 
 
 def handle_subject_and_sender(content):
+    a = email.header.decode_header(content["Subject"])
+    full_subject = ""
     subject, subject_encoding = email.header.decode_header(content["Subject"])[0]
-    if isinstance(subject, bytes):
-        if subject_encoding is None:
-            subject = subject.decode("utf-8")
-        else:
-            subject = subject.decode(subject_encoding)
+    for subject, subject_encoding in email.header.decode_header(content["Subject"]):
+        if isinstance(subject, bytes):
+            if subject_encoding is None:
+                subject = subject.decode("utf-8")
+            else:
+                subject = subject.decode(subject_encoding)
+        full_subject += subject
     sender_name, sender_mail = parse_info(email.header.decode_header(content["From"]))
     receiver_name, receiver_mail = parse_info(email.header.decode_header(content["To"]))
 
