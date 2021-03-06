@@ -12,6 +12,7 @@ import ssl
 import discord
 import os
 import sys
+import re
 
 class MailContent:
     def __init__(self):
@@ -94,6 +95,7 @@ def initialize_bot(file_path):
                                     break
                         for i in range(5):
                             to_sent = to_sent.replace("\r\n\r\n\r\n", "\r\n\r\n")
+                            # to_sent = to_sent.replace("\r\n\r\n", "\r\n")
                         if send_char_length < len(to_sent):
                             to_sent = to_sent[:send_char_length] + \
                                     "\n\nThis mail was sent to conference: **" + \
@@ -207,6 +209,7 @@ def handle_mail(id, imap_server):
             mail_response.receiver_address = receiver_address
             # Multipart is either resended mail or response to mail, or it may just contain attachment or some formatting.
             if mail_content.is_multipart():
+                prev_plain = False
                 for part in mail_content.walk():
                     # Get content type and it's conetent
                     content_type = part.get_content_type()
@@ -217,6 +220,11 @@ def handle_mail(id, imap_server):
                         continue
                     if content_type == "text/plain" and "attachment" not in content_disposition:
                         mail_response.message.append(part_body)
+                        prev_plain = True
+                    elif content_type == "text/html" and not prev_plain and "attachment" not in content_disposition:
+                        mail_response.message.append(re.sub('<[^<]+?>', '',part_body))
+                    else:
+                        prev_plain = False
                     # elif "attachment"  in content_disposition:
                     # TODO: Attachment doesn't have to be handled yet
                     #   Implement: handle_attachment() if needed
@@ -225,6 +233,9 @@ def handle_mail(id, imap_server):
                 part_body = mail_content.get_payload(decode=True).decode()
                 if content_type == "text/plain":
                     mail_response.message.append(part_body)
+                elif content_type == "text/html":
+                    mail_response.message.append(re.sub('<[^<]+?>', '',part_body))
+
 
     return mail_response
 
