@@ -190,6 +190,16 @@ def handle_subject_and_sender(content):
     return subject, sender_name, sender_mail, receiver_mail
 
 
+def add_message(mail, message):
+    part_body = re.sub('<[^<]+?>', '', message)
+    start_with = False
+    for curr_mess in mail.message:
+        if curr_mess.startswith(part_body[:5]):
+            start_with = True
+    if not start_with:
+        mail.message.append(part_body)
+
+
 def handle_mail(id, imap_server):
     status, mail = imap_server.fetch(id, '(RFC822)')
     if status != 'OK':
@@ -215,14 +225,15 @@ def handle_mail(id, imap_server):
                     content_type = part.get_content_type()
                     content_disposition = str(part.get("Content-Disposition"))
                     try:
-                        part_body = part.get_payload(decode=True).decode()
+                        payload = part.get_payload(decode=True)
+                        part_body = payload.decode(part.get_content_charset())
                     except:
                         continue
                     if content_type == "text/plain" and "attachment" not in content_disposition:
-                        mail_response.message.append(part_body)
+                        add_message(mail_response, part_body)
                         prev_plain = True
                     elif content_type == "text/html" and not prev_plain and "attachment" not in content_disposition:
-                        mail_response.message.append(re.sub('<[^<]+?>', '',part_body))
+                        add_message(mail_response, re.sub('<[^<]+?>', '', part_body))
                     else:
                         prev_plain = False
                     # elif "attachment"  in content_disposition:
@@ -235,8 +246,6 @@ def handle_mail(id, imap_server):
                     mail_response.message.append(part_body)
                 elif content_type == "text/html":
                     mail_response.message.append(re.sub('<[^<]+?>', '',part_body))
-
-
     return mail_response
 
 def set_mail_as_seen(imap_server, id):
