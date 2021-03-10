@@ -63,7 +63,9 @@ def initialize_bot(file_path):
     # Kinda ugly solution but it works
     # Bot is constantly waiting for new mails, periodic check would be better.
 
-    async def while_running():
+    # async def while_running():
+    @client.event
+    async def on_ready():
         while (True):
             imap = login_to_imap_with_config(config_file)
 
@@ -105,9 +107,9 @@ def initialize_bot(file_path):
                         delimter = "----------------------------------------------------------------"
                         await channel.send(delimter + "\n" + to_sent + "\n" + delimter)
 
-    @client.event
-    async def on_ready():
-        client.loop.create_task(while_running())
+    # @client.event
+    # async def on_ready():
+    #     client.loop.create_task(while_running())
 
     client.run(get_var(file_path, "bot_token"))
 
