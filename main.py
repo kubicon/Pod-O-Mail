@@ -13,6 +13,7 @@ import discord
 import os
 import sys
 import re
+import asyncio
 
 class MailContent:
     def __init__(self):
@@ -106,7 +107,7 @@ def initialize_bot(file_path):
                         # print(to_sent)
                         delimter = "----------------------------------------------------------------"
                         await channel.send(delimter + "\n" + to_sent + "\n" + delimter)
-
+            await asyncio.sleep(30)
     # @client.event
     # async def on_ready():
     #     client.loop.create_task(while_running())
