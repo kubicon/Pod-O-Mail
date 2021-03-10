@@ -49,10 +49,10 @@ def login_to_imap_with_config2(file_path):
 
 def get_white_list(file_path):
     white_list = get_var(file_path, "white_list")
-    split_list = white_list.replace("[", "").replace("]", "").strip().split(";")
+    split_list = white_list.strip().replace("[", "").replace("]", "").strip().split(";")
     parsed_white = []
     for splitted in split_list:
-        parsed_split = splitted.replace("(", "").replace(")", "").strip().split(",")
+        parsed_split = splitted.strip().replace("(", "").replace(")", "").strip().split(",")
         parsed_white.append((parsed_split[0].strip(), parsed_split[1].strip()))
     return parsed_white
 
@@ -62,8 +62,8 @@ def initialize_bot(file_path):
 
     # Kinda ugly solution but it works
     # Bot is constantly waiting for new mails, periodic check would be better.
-    @client.event
-    async def on_ready():
+
+    async def while_running():
         while (True):
             imap = login_to_imap_with_config(config_file)
 
@@ -104,6 +104,10 @@ def initialize_bot(file_path):
                         # print(to_sent)
                         delimter = "----------------------------------------------------------------"
                         await channel.send(delimter + "\n" + to_sent + "\n" + delimter)
+
+    @client.event
+    async def on_ready():
+        client.loop.create_task(while_running())
 
     client.run(get_var(file_path, "bot_token"))
 
