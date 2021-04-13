@@ -65,6 +65,7 @@ def initialize_bot(file_path):
     # Bot is constantly waiting for new mails, periodic check would be better.
 
     # async def while_running():
+    print("Initializing bot!")
     @client.event
     async def on_ready():
         while (True):
