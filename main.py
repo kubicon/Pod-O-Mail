@@ -69,8 +69,14 @@ def initialize_bot(file_path):
     @client.event
     async def on_ready():
         while (True):
-            imap = login_to_imap_with_config(config_file)
-
+            try:
+                imap = login_to_imap_with_config(config_file)
+            except Exception as e:
+                print("Caught some exception: " + str(e))
+                continue
+            except:
+                print("Caught something fishy, it is not standard exception")
+                continue
 
             unseen_messages = find_unseen_in_inbox(imap)
             new_mails_to_print = []
